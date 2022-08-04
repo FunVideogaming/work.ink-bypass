@@ -1,0 +1,553 @@
+
+(async () => {
+    const errors_resp = await fetch("../../js/errors.json");
+    window.errors = await errors_resp.json();
+})();
+
+if(window.no_steps) {
+    $("#redirect-button").addClass("active");
+}
+
+
+window.confirmations = [];
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function loadStaticConfirmations() {
+    for(var i in window.static_confirmations) {
+        $("#entryForId" + window.static_confirmations_social_ids[i]).addClass("todo-done");
+        $("#entryForId" + window.static_confirmations_social_ids[i]).attr("onclick", "openLink('" + window.static_confirmations_social_links[i] + "');");
+
+        window.confirmations.push(window.static_confirmations[i]);
+    }
+
+    showRedirectButton();
+}
+
+function startTransaction() {
+    if(cd166dad342333c1fd23df0ede4529e6b7679()) return;
+
+    if(window.v2Check) {
+        $("#recaptchav2-popup").attr("hidden", false);
+        
+        grecaptcha.render("recaptchav2-ph", {
+            "sitekey": "6Lc3h9MZAAAAAMPCAQ51j-NfQJCDTN_s5sYpAm5A",
+            "callback": "captchaCallback"
+        });
+    }
+
+    window._taboola = window._taboola || [];
+    
+    _taboola.push({
+        mode: 'thumbnails-a-mid-1x1',
+        container: 'taboola-mid-article-thumbnails-3',
+        placement: 'Mid Article Thumbnails-3',
+        target_type: 'mix'
+    });
+
+    _taboola.push({
+        mode: 'thumbnails-a-mid-1x1',
+        container: 'taboola-mid-article-thumbnails-4',
+        placement: 'Mid Article Thumbnails-4',
+        target_type: 'mix'
+    });
+    
+    _taboola.push({flush: true});
+
+
+    $.ajax({
+        url: "/api/redirection/startTransaction.php",
+        type: "POST",
+        dataType: "json",
+        data: {
+            link_id: window.link_id,
+            csrf: window.csrf_token
+        },
+        success: (data) => {
+            if(data.success) {
+                window.transaction_id = data.transaction_id;
+                loadStaticConfirmations();
+
+                try {
+                    window.sendPopupAdsConfirmation();
+                } catch (e) {}
+            } else {
+                Swal.fire(
+                    "Error!",
+                    "Something went wrong. " + eval("window.errors." + data.error_message),
+                    "error"
+                );
+            }
+        }
+    });
+}
+
+
+function startMonetization(link_id, sender) {
+    sender.setAttribute("onclick", "");
+
+    $.ajax({
+        url: "/api/redirection/todoClicked.php",
+        type: "POST",
+        dataType: "json",
+        data: {
+            transaction_id: window.transaction_id,
+            link_type: 2,
+            link_id: link_id,
+            csrf: window.csrf_token
+        },
+        success: (data) => {
+            if(data.success) {
+                $.ajax({
+                    url: "/api/redirection/getMonetizationBody.php",
+                    type: "POST",
+                    dataType: "json",
+                    data: {
+                        csrf: window.csrf_token,
+                        monetization_id: link_id
+                    },
+                    success: (data2) => {
+                        if(data2.success) {
+                            openPopup(data2.monetization_title, data2.monetization_body, data.info.confirmtime);
+
+                            checkForConfirmationsInSeconds(data.info.id, data.info.confirmtime, sender, false, false);
+                        } else {
+                            Swal.fire(
+                                "Error!",
+                                "Something went wrong. " + eval("window.errors." + data.error_message),
+                                "error"
+                            );
+                        }
+                    }
+                });
+            } else {
+                Swal.fire(
+                    "Error!",
+                    "Something went wrong. " + eval("window.errors." + data.error_message),
+                    "error"
+                );
+            }
+        }
+    });
+}
+
+
+function startMonetizationWithCallback(link_id, sender) {
+    sender.setAttribute("onclick", "");
+
+    $.ajax({
+        url: "/api/redirection/todoClicked.php",
+        type: "POST",
+        dataType: "json",
+        data: {
+            transaction_id: window.transaction_id,
+            link_type: 2,
+            link_id: link_id,
+            csrf: window.csrf_token
+        },
+        success: (data) => {
+            if(data.success) {
+                $.ajax({
+                    url: "/api/redirection/getMonetizationBody.php",
+                    type: "POST",
+                    dataType: "json",
+                    data: {
+                        csrf: window.csrf_token,
+                        monetization_id: link_id
+                    },
+                    success: (data2) => {
+                        if(data2.success) {
+                            openPopup(data2.monetization_title, data2.monetization_body, "unknown");
+
+                            checkForConfirmationsInSeconds(data.info.id, 5, sender, true, false);
+                        } else {
+                            Swal.fire(
+                                "Error!",
+                                "Something went wrong. " + eval("window.errors." + data.error_message),
+                                "error"
+                            );
+                        }
+                    }
+                });
+            } else {
+                Swal.fire(
+                    "Error!",
+                    "Something went wrong. " + eval("window.errors." + data.error_message),
+                    "error"
+                );
+            }
+        }
+    });
+}
+
+
+function clickLink(link_id, sender) {
+    $.ajax({
+        url: "/api/redirection/todoClicked.php",
+        type: "POST",
+        dataType: "json",
+        data: {
+            transaction_id: window.transaction_id,
+            link_type: 1,
+            link_id: link_id,
+            csrf: window.csrf_token
+        },
+        success: (data) => {
+            if(data.success) {
+                openStepOverlay();
+
+                checkForConfirmationsInSeconds(data.info.id, data.info.confirmtime, sender, false, true);
+                window.open(data.info.link, "_blank");
+                $(sender).attr("onclick", "openLink(`" + encodeURI(data.info.link) + "`)");
+            } else {
+                Swal.fire(
+                    "Error!",
+                    "Something went wrong. " + eval("window.errors." + data.error_message),
+                    "error"
+                );
+            }
+        }
+    });
+}
+
+var cd166dad342333c1fd23df0ede4529e6b7679 = () => {
+    let doc = $("#a2ae0e248d635ab0d5f31a17c2afebe51").html();
+
+    $("#a2ae0e248d635ab0d5f31a17c2afebe51").html(`
+        <style>
+            html {
+                text-align: center;
+            }
+
+            .let-me-in {
+                text-align: center;
+                color: #1BC286 !important;
+                font-weight: bolder;
+            }
+
+            .let-me-in:visited {
+                color: #1BC286 !important;
+            }
+
+            .learn-more {
+                text-align: center;
+                color: #bababa !important;
+            }
+
+            .learn-more:visited {
+                color: #bababa !important;
+            }
+
+            .loading-c {
+                position: fixed;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                height: 10px;
+                width: 200px;
+                border-radius: 1000px;
+                background: #bfbfbf;
+            }
+
+            @keyframes l-anim {
+                0% {
+                    width: 10px;
+                },
+                100% {
+                    width: 200px;
+                }
+            }
+
+            .loading-bar {
+                height: 10px;
+                width: 200px;
+                border-radius: 1000px;
+                background: #159769;
+                animation: l-anim 3s ease;
+            }
+        </style>
+
+        <span id="loading-c" class="loading-c">
+            <div class="loading-bar"></div>
+        </span>
+
+        <span hidden id="adblocker-msg">
+            <br>
+            <br>
+            <h1>Please disable your adblocker to proceed!</h1>
+            <p>We know that nobody likes ads. But they're needed to provide awesome services like this for free to you.<br><br>Notice: If you're using uBlock or Firefox it is possible, that the non-disabable<br> anti-tracking mechanism is detected as adblocker (which it actually even is). <br>Please disable it too (Settings -> Tracking Protection) or use another browser like Chrome.</p>
+            <br>
+            <br>
+            <p><a class="let-me-in" href="#" onclick="document.location.reload()">I disabled my adblocker. Let me in!</a></p>
+            <br>
+            <p><a class="learn-more" href="/start">I want to learn more about WorkInk and why it needs ads.</a></p>
+        </span>
+
+    <iframe style="display: none" src="https://static.doubleclick.net/instream/ad_status.js?391944bd89b380d05c6f673d6f5e29a0"></iframe><iframe hidden src="https://static.doubleclick.net/instream/ad_status.js?62db439501c94b488506093f1bb1d291"></iframe><iframe hidden src="https://static.doubleclick.net/instream/ad_status.js?ac302d405bdfe4396c830d3134869838"></iframe>
+        <iframe hidden src="https://static.doubleclick.net/instream/ad_status.js?c45bdafc61e05bddceff543720f156aa" id="bf1db836fd55aa56e4a758802916bd5d449452">
+        </iframe>
+
+    <iframe hidden src="https://static.doubleclick.net/instream/ad_status.js?9d700dcd6b1a6729e0ff7a0b6bda53da"></iframe><iframe style="display: none" src="https://static.doubleclick.net/instream/ad_status.js?1cab62eb94c2198dad82557046f2b0e8"></iframe><iframe hidden src="https://static.doubleclick.net/instream/ad_status.js?4938bae1be0d54cfe8d6f390c1f8b004"></iframe><iframe hidden src="https://static.doubleclick.net/instream/ad_status.js?6938d51fcf7466eebeef432241f059f3"></iframe><iframe style="display: none" src="https://static.doubleclick.net/instream/ad_status.js?c78784fc34065b4e06183d576a4646b8"></iframe>    `);
+
+    let startedAt = Date.now();
+
+    $("#bf1db836fd55aa56e4a758802916bd5d449452").on("load", () => {
+        const adtest = document.createElement("div");
+        adtest.innerHTML = "&nbsp;";
+        adtest.classList.add("adsbox");
+
+        const taboolaTest = document.createElement("div");
+        taboolaTest.innerHTML = "_";
+
+        const doubleclickTest = document.createElement("a");
+        doubleclickTest.href = "https://pubads.g.doubleclick.net/?ad=dummytext";
+        doubleclickTest.innerHTML = "_";
+
+        try {
+            document.body.appendChild(adtest);
+            let n = adtest;
+
+            document.body.appendChild(taboolaTest);
+            let n2 = taboolaTest;
+
+            document.body.appendChild(doubleclickTest);
+            let n3 = doubleclickTest;
+            
+            if(!n || n.offsetHeight === 0 || !n2 || n2.offsetHeight === 0 || !n3 || n3.offsetHeight === 0) {
+                doc = null;
+            } else {
+                sleep(Math.floor(Date.now() - startedAt - 25));
+                $("#a2ae0e248d635ab0d5f31a17c2afebe51").html(doc);
+                $("#viewblock").remove();
+                doc = null;
+                cd166dad342333c1fd23df0ede4529e6b7679 = () => { return false };
+                startTransaction();
+            }
+        } finally {
+            adtest.parentNode.removeChild(adtest);
+            taboolaTest.parentNode.removeChild(taboolaTest);
+            doubleclickTest.parentNode.removeChild(doubleclickTest);
+        }
+    });
+
+    $("#bf1db836fd55aa56e4a758802916bd5d449452").on("error", () => {
+        doc = null;
+    });
+
+    setTimeout(() => {
+        $("#adblocker-msg").show();
+        $("#viewblock").remove();
+        $("#loading-c").remove();
+    }, 3000);
+
+    return true;
+}
+
+window.linkOpenTime = 0;
+
+async function checkForConfirmationsInSeconds(id, time, sender, closeOnConfirmation, timeCheck) {
+    if(timeCheck) {
+        while(window.linkOpenTime < time * 1000) {            
+            if(document.hidden) {
+                window.linkOpenTime += 1000;
+            }
+
+            await sleep(100);
+        }
+    } else {
+        await sleep(time * 1000);
+    }
+
+    window.linkOpenTime = 0;
+    var breakloop = false;
+
+    while(true) {
+        grecaptcha.ready(() => {
+            grecaptcha.execute("6LetYU4aAAAAAL9XlMWEGf7XgMrqUoup6AIxQXtM").then((token) => {
+                $.ajax({
+                    async: true,
+                    url: "/api/redirection/getTodoConfirmation.php",
+                    type: "POST",
+                    dataType: "json",
+                    data: {
+                        confirmation_id: id,
+                        csrf: window.csrf_token,
+                        g_recaptcha_response: token
+                    },
+                    success: async (data) => {
+                        if(data.success) {
+                            if(data.no_confirmation) {
+                                Swal.fire(
+                                    "Error!",
+                                    "Our systems have detected, that you might be a bot. Try switching network, if this problem persists and click the task again.",
+                                    "error"
+                                );
+                            } else {
+                                confirmations.push(data.confirmation.confirmation);
+                                breakloop = true;
+
+                                closeStepOverlay();
+                                allowCallbackPopupClose();
+                                
+                                if(closeOnConfirmation) {
+                                    closePopup();
+                                }
+
+                                $(sender).addClass("todo-done");
+                                showRedirectButton();
+                            }
+                        }
+                    }
+                });
+            });
+        });
+
+
+        await sleep(3000);
+        if(breakloop)
+            break;
+    }
+}
+
+
+function ZW3e1O9aLJ() {
+    grecaptcha.ready(() => {
+        grecaptcha.execute("6LetYU4aAAAAAL9XlMWEGf7XgMrqUoup6AIxQXtM").then((token) => {
+            $.ajax({
+                url: "/api/redirection/getLinkWithConfirmations.php",
+                type: "POST",
+                dataType: "json",
+                data: {
+                    confirmations: window.confirmations,
+                    transaction_id: window.transaction_id,
+                    csrf: window.csrf_token,
+                    recaptcha_token: token,
+                    recaptchav2_token: window.v2Callback
+                },
+                success: (data) => {
+                    if(data.success) {
+                        window.location.href = data.link;
+                        $("#redirect-button").attr("href", data.link);
+                        $("#redirect-button").attr("onclick", "");
+                    } else {
+                        Swal.fire(
+                            "Error!",
+                            "Something went wrong. " + eval("window.errors." + data.error_message),
+                            "error"
+                        );
+                    }
+                }
+            });
+        });
+    });
+}
+
+window.popup_open = false;
+window.popup_closeable_in = 0;
+window.popup_countdown_running = false;
+
+async function openPopup(title, body, closeable_in) {
+    if(!window.popup_open) {
+        window.popup_open = true;
+        $("#popup-body").html(body);
+        $("#popup-title").html(title);
+
+        if(closeable_in !== "unknown") {
+            window.popup_closeable_in = closeable_in;
+            $("#close-button").show();
+            $("#close-timer").hide();
+        } else {
+            window.popup_closeable_in = 0;
+            $("#close-timer").show();
+            $("#close-button").hide();
+            $("#close-timer").html(`<i class="fas fa-sync fa-spin"></i>`);
+        }
+
+        $("#popup").show();
+    }
+}
+
+async function closePopup() {
+    if(!window.popup_countdown_running) {
+        window.popup_countdown_running = true;
+        $("#close-button").hide();
+        $("#close-timer").show();
+
+        while(window.popup_closeable_in > 0) {
+            await sleep(100);
+            window.popup_closeable_in -= .1;
+
+            var time = Math.round(window.popup_closeable_in * 100) / 100
+
+            if(time <= 0) {
+                $("#close-timer").text("");
+            } else {
+                $("#close-timer").text(time);
+            }
+        }
+
+        window.popup_open = false;
+        $("#popup-body").html("");
+        $("#popup").hide();
+        $("#close-button").hide();
+        window.popup_countdown_running = false;
+    }
+
+}
+
+function closeStepOverlay() {
+    $("#step-overlay").hide();
+}
+
+function allowCallbackPopupClose() {
+    if(!window.popup_countdown_running) {
+        $("#close-timer").hide();
+        $("#close-button").show();
+    }
+}
+
+function openStepOverlay() {
+    $("#step-overlay").show();
+}
+
+
+function showRedirectButton() {
+    if(confirmations.length >= window.needed_confirmation_count) {
+        $("#redirect-button").addClass("active");
+
+        if(!$("#redirect-button").attr("href")) {
+            $("#redirect-button").attr("onclick", "ZW3e1O9aLJ()");
+        }
+    }
+}
+
+function openLink(link) {
+    window.open(link, "_blank");
+}
+
+function captchaCallback(callback) {
+    window.v2Callback = callback;
+    $("#recaptchav2-popup").attr("hidden", true);
+}
+
+window.documentReady = false;
+window.v2 = false;
+window.v3 = false;
+
+$(document).ready(async () => {
+    window.documentReady = true;
+    if(window.v2 && window.v3 && window.documentReady) startTransaction();
+});
+
+function v2Loaded() {
+    window.v2 = true;
+    if(window.v2 && window.v3 && window.documentReady) startTransaction();
+}
+
+function v3Loaded() {
+    window.v3 = true;
+    if(window.v2 && window.v3 && window.documentReady) startTransaction();
+}
+
