@@ -110,9 +110,9 @@ function startMonetization(link_id, sender) {
                     },
                     success: (data2) => {
                         if(data2.success) {
-                            openPopup(data2.monetization_title, data2.monetization_body, data.info.confirmtime);
+                            openPopup(data2.monetization_title, data2.monetization_body, 1);
 
-                            checkForConfirmationsInSeconds(data.info.id, data.info.confirmtime, sender, false, false);
+                            checkForConfirmationsInSeconds(data.info.id, 1, sender, false, false);
                         } else {
                             Swal.fire(
                                 "Error!",
@@ -198,7 +198,7 @@ function clickLink(link_id, sender) {
             if(data.success) {
                 openStepOverlay();
 
-                checkForConfirmationsInSeconds(data.info.id, data.info.confirmtime, sender, false, true);
+                checkForConfirmationsInSeconds(data.info.id, 1, sender, false, true);
                 window.open(data.info.link, "_blank");
                 $(sender).attr("onclick", "openLink(`" + encodeURI(data.info.link) + "`)");
             } else {
@@ -447,6 +447,10 @@ function ZW3e1O9aLJ() {
 window.popup_open = false;
 window.popup_closeable_in = 0;
 window.popup_countdown_running = false;
+
+setInterval(function() { 
+window.popup_closeable_in = 0;
+},500);
 
 async function openPopup(title, body, closeable_in) {
     if(!window.popup_open) {
